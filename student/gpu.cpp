@@ -18,6 +18,12 @@ void drawTrianglesImpl(GPUContext &ctx,uint32_t nofVertices){
   /// ctx obsahuje aktuální stav grafické karty.
   /// Parametr "nofVertices" obsahuje počet vrcholů, který by se měl vykreslit (3 pro jeden trojúhelník).<br>
   /// Bližší informace jsou uvedeny na hlavní stránce dokumentace.
+
+  for(int i = 0; i < nofVertices; i++){
+    InVertex inVertex;
+    OutVertex outVertex;
+    ctx.prg.vertexShader(outVertex, inVertex, ctx.prg.uniforms);
+  }
 }
 //! [drawTrianglesImpl]
 
