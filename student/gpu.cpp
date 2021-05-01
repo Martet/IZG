@@ -7,7 +7,24 @@
 
 #include <student/gpu.hpp>
 
+uint32_t computeVertexID(VertexArray const&vao,uint32_t shaderInvocation){
+  if(!vao.indexBuffer)return shaderInvocation;
 
+  if(vao.indexType == IndexType::UINT32){
+    uint32_t*ind = (uint32_t*)vao.indexBuffer;
+    return ind[shaderInvocation];
+  }
+  else if(vao.indexType == IndexType::UINT16){
+    uint16_t*ind = (uint16_t*)vao.indexBuffer;
+    return (uint32_t)ind[shaderInvocation];
+  }
+  else if(vao.indexType == IndexType::UINT8){
+    uint8_t*ind = (uint8_t*)vao.indexBuffer;
+    return (uint32_t)ind[shaderInvocation];
+  }
+
+  return shaderInvocation;
+}
 
 
 //! [drawTrianglesImpl]
@@ -22,6 +39,7 @@ void drawTrianglesImpl(GPUContext &ctx,uint32_t nofVertices){
   for(int i = 0; i < nofVertices; i++){
     InVertex inVertex;
     OutVertex outVertex;
+    inVertex.gl_VertexID = computeVertexID(ctx.vao, i);
     ctx.prg.vertexShader(outVertex, inVertex, ctx.prg.uniforms);
   }
 }
