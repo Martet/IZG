@@ -2,7 +2,7 @@
  * @file
  * @brief This file contains implementation of gpu
  *
- * @author Tomáš Milet, imilet@fit.vutbr.cz
+ * @author Martin Zmitko, xzmitk01@stud.fit.vutbr.cz
  */
 
 #include <student/gpu.hpp>
@@ -11,6 +11,8 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define AREA(v0, v1, v2) ((v0.x) * (v1.y) + (v1.x) * (v2.y) + (v2.x) * (v0.y) - (v1.x) * (v0.y) - (v2.x) * (v1.y) - (v0.x) * (v2.y)) / 2
 
 struct Triangle{
   OutVertex points[3];
@@ -76,37 +78,46 @@ void viewportTransformation(Triangle &triangle, uint32_t w, uint32_t h){
   }
 }
 
-void rasterize(GPUContext &ctx, Triangle const &triangle){
-  int maxX = MAX(triangle.points[0].gl_Position.x, MAX(triangle.points[1].gl_Position.x, triangle.points[2].gl_Position.x));
-  int maxY = MAX(triangle.points[0].gl_Position.y, MAX(triangle.points[1].gl_Position.y, triangle.points[2].gl_Position.y));
-  int minX = MIN(triangle.points[0].gl_Position.x, MIN(triangle.points[1].gl_Position.x, triangle.points[2].gl_Position.x));
-  int minY = MIN(triangle.points[0].gl_Position.y, MIN(triangle.points[1].gl_Position.y, triangle.points[2].gl_Position.y));
+void getBarCords(Triangle &triangle, InFragment &fragment){
+  float area = AREA(triangle.points[0].gl_Position, triangle.points[1].gl_Position, triangle.points[2].gl_Position);
+  float bar0 = AREA(triangle.points[1].gl_Position, triangle.points[2].gl_Position, fragment.gl_FragCoord) / area;
+  float bar1 = AREA(triangle.points[2].gl_Position, triangle.points[0].gl_Position, fragment.gl_FragCoord) / area;
+  float bar2 = AREA(triangle.points[0].gl_Position, triangle.points[1].gl_Position, fragment.gl_FragCoord) / area;
+  fragment.gl_FragCoord.z = triangle.points[0].gl_Position.z * bar0 + triangle.points[1].gl_Position.z * bar1 + triangle.points[2].gl_Position.z * bar2;
+}
+
+void rasterize(GPUContext &ctx, Triangle &triangle){
+  int32_t maxX = MAX(triangle.points[0].gl_Position.x, MAX(triangle.points[1].gl_Position.x, triangle.points[2].gl_Position.x));
+  int32_t maxY = MAX(triangle.points[0].gl_Position.y, MAX(triangle.points[1].gl_Position.y, triangle.points[2].gl_Position.y));
+  int32_t minX = MIN(triangle.points[0].gl_Position.x, MIN(triangle.points[1].gl_Position.x, triangle.points[2].gl_Position.x));
+  int32_t minY = MIN(triangle.points[0].gl_Position.y, MIN(triangle.points[1].gl_Position.y, triangle.points[2].gl_Position.y));
 
   maxX = MIN(maxX, ctx.frame.width);
   maxY = MIN(maxY, ctx.frame.height);
   minX = MAX(minX, 0);
   minY = MAX(minY, 0);
 
-  int deltaX1 = triangle.points[1].gl_Position.x - triangle.points[0].gl_Position.x;
-  int deltaY1 = triangle.points[1].gl_Position.y - triangle.points[0].gl_Position.y;
-  int deltaX2 = triangle.points[2].gl_Position.x - triangle.points[1].gl_Position.x;
-  int deltaY2 = triangle.points[2].gl_Position.y - triangle.points[1].gl_Position.y;
-  int deltaX3 = triangle.points[0].gl_Position.x - triangle.points[2].gl_Position.x;
-  int deltaY3 = triangle.points[0].gl_Position.y - triangle.points[2].gl_Position.y;
+  int32_t deltaX1 = triangle.points[1].gl_Position.x - triangle.points[0].gl_Position.x;
+  int32_t deltaY1 = triangle.points[1].gl_Position.y - triangle.points[0].gl_Position.y;
+  int32_t deltaX2 = triangle.points[2].gl_Position.x - triangle.points[1].gl_Position.x;
+  int32_t deltaY2 = triangle.points[2].gl_Position.y - triangle.points[1].gl_Position.y;
+  int32_t deltaX3 = triangle.points[0].gl_Position.x - triangle.points[2].gl_Position.x;
+  int32_t deltaY3 = triangle.points[0].gl_Position.y - triangle.points[2].gl_Position.y;
 
   float E1 = (minY + 0.5 - triangle.points[0].gl_Position.y) * deltaX1 - (minX + 0.5 - triangle.points[0].gl_Position.x) * deltaY1;
   float E2 = (minY + 0.5 - triangle.points[1].gl_Position.y) * deltaX2 - (minX + 0.5 - triangle.points[1].gl_Position.x) * deltaY2;
   float E3 = (minY + 0.5 - triangle.points[2].gl_Position.y) * deltaX3 - (minX + 0.5 - triangle.points[2].gl_Position.x) * deltaY3;
 
-  for(int y = minY; y < maxY; y++){
-    int lastE1 = E1;
-    int lastE2 = E2;
-    int lastE3 = E3;
-    for(int x = minX; x < maxX; x++){
+  for(uint32_t y = minY; y < maxY; y++){
+    int32_t lastE1 = E1;
+    int32_t lastE2 = E2;
+    int32_t lastE3 = E3;
+    for(uint32_t x = minX; x < maxX; x++){
       if(E1 >= 0 && E2 >= 0 && E3 >= 0){
         InFragment inFragment;
         inFragment.gl_FragCoord.x = x + 0.5;
         inFragment.gl_FragCoord.y = y + 0.5;
+        getBarCords(triangle, inFragment);
         OutFragment outFragment;
         ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
       }
