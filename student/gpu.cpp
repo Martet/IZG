@@ -6,6 +6,7 @@
  */
 
 #include <student/gpu.hpp>
+#include <iostream>
 
 uint32_t computeVertexID(VertexArray const&vao,uint32_t shaderInvocation){
   if(!vao.indexBuffer)return shaderInvocation;
@@ -26,20 +27,35 @@ uint32_t computeVertexID(VertexArray const&vao,uint32_t shaderInvocation){
   return shaderInvocation;
 }
 
+void vertexPuller(VertexArray const &vao, InVertex &vert){
+  for(uint32_t i = 0; i < maxAttributes; i++){
+    switch(vao.vertexAttrib[i].type){
+      case AttributeType::EMPTY:
+        break;
+      case AttributeType::FLOAT:
+        vert.attributes[i].v1 = *(float*)((uint8_t*)vao.vertexAttrib[i].bufferData + vao.vertexAttrib[i].offset + vao.vertexAttrib[i].stride * vert.gl_VertexID);
+        break;
+      case AttributeType::VEC2:
+        vert.attributes[i].v2 = *(glm::vec2*)((uint8_t*)vao.vertexAttrib[i].bufferData + vao.vertexAttrib[i].offset + vao.vertexAttrib[i].stride * vert.gl_VertexID);
+        break;
+      case AttributeType::VEC3:
+        vert.attributes[i].v3 = *(glm::vec3*)((uint8_t*)vao.vertexAttrib[i].bufferData + vao.vertexAttrib[i].offset + vao.vertexAttrib[i].stride * vert.gl_VertexID);
+        break;
+      case AttributeType::VEC4:
+        vert.attributes[i].v4 = *(glm::vec4*)((uint8_t*)vao.vertexAttrib[i].bufferData + vao.vertexAttrib[i].offset + vao.vertexAttrib[i].stride * vert.gl_VertexID);
+        break;
+    }
+  }
+}
+
 
 //! [drawTrianglesImpl]
 void drawTrianglesImpl(GPUContext &ctx,uint32_t nofVertices){
-  (void)ctx;
-  (void)nofVertices;
-  /// \todo Tato funkce vykreslí trojúhelníky podle daného nastavení.<br>
-  /// ctx obsahuje aktuální stav grafické karty.
-  /// Parametr "nofVertices" obsahuje počet vrcholů, který by se měl vykreslit (3 pro jeden trojúhelník).<br>
-  /// Bližší informace jsou uvedeny na hlavní stránce dokumentace.
-
   for(int i = 0; i < nofVertices; i++){
     InVertex inVertex;
     OutVertex outVertex;
     inVertex.gl_VertexID = computeVertexID(ctx.vao, i);
+    vertexPuller(ctx.vao, inVertex);
     ctx.prg.vertexShader(outVertex, inVertex, ctx.prg.uniforms);
   }
 }

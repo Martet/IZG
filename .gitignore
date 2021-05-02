@@ -5,3 +5,4 @@ resources/
 doc/
 build/*
 !build/.keep
+.vscode/
