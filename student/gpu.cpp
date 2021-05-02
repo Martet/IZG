@@ -11,17 +11,13 @@
 uint32_t computeVertexID(VertexArray const&vao,uint32_t shaderInvocation){
   if(!vao.indexBuffer)return shaderInvocation;
 
-  if(vao.indexType == IndexType::UINT32){
-    uint32_t*ind = (uint32_t*)vao.indexBuffer;
-    return ind[shaderInvocation];
-  }
-  else if(vao.indexType == IndexType::UINT16){
-    uint16_t*ind = (uint16_t*)vao.indexBuffer;
-    return (uint32_t)ind[shaderInvocation];
-  }
-  else if(vao.indexType == IndexType::UINT8){
-    uint8_t*ind = (uint8_t*)vao.indexBuffer;
-    return (uint32_t)ind[shaderInvocation];
+  switch(vao.indexType){
+    case IndexType::UINT32:
+      return ((uint32_t*)vao.indexBuffer)[shaderInvocation];
+    case IndexType::UINT16:
+      return ((uint16_t*)vao.indexBuffer)[shaderInvocation];
+    case IndexType::UINT8:
+      return ((uint8_t*)vao.indexBuffer)[shaderInvocation];
   }
 
   return shaderInvocation;
