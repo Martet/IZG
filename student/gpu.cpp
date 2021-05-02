@@ -82,8 +82,27 @@ void getBarCords(Triangle &triangle, InFragment &fragment){
   float area = AREA(triangle.points[0].gl_Position, triangle.points[1].gl_Position, triangle.points[2].gl_Position);
   float bar0 = AREA(triangle.points[1].gl_Position, triangle.points[2].gl_Position, fragment.gl_FragCoord) / area;
   float bar1 = AREA(triangle.points[2].gl_Position, triangle.points[0].gl_Position, fragment.gl_FragCoord) / area;
-  float bar2 = AREA(triangle.points[0].gl_Position, triangle.points[1].gl_Position, fragment.gl_FragCoord) / area;
+  float bar2 = 1 - bar0 - bar1;
   fragment.gl_FragCoord.z = triangle.points[0].gl_Position.z * bar0 + triangle.points[1].gl_Position.z * bar1 + triangle.points[2].gl_Position.z * bar2;
+}
+
+void getPerspectiveBarAttrs(Triangle &triangle, InFragment &fragment, Program &prg){
+  float area = AREA(triangle.points[0].gl_Position, triangle.points[1].gl_Position, triangle.points[2].gl_Position);
+  float bar0 = AREA(triangle.points[1].gl_Position, triangle.points[2].gl_Position, fragment.gl_FragCoord) / area;
+  float bar1 = AREA(triangle.points[2].gl_Position, triangle.points[0].gl_Position, fragment.gl_FragCoord) / area;
+  float bar2 = 1 - bar0 - bar1;
+  float s = bar0 / triangle.points[0].gl_Position.w + bar1 / triangle.points[1].gl_Position.w + bar2 / triangle.points[2].gl_Position.w;
+  bar0 /= triangle.points[0].gl_Position.w * s;
+  bar1 /= triangle.points[1].gl_Position.w * s;
+  bar2 /= triangle.points[2].gl_Position.w * s;
+
+  for(uint32_t i = 0; i < maxAttributes; i++){
+    if(prg.vs2fs[i] != AttributeType::EMPTY){
+      fragment.attributes[i].v3.r = triangle.points[0].attributes[i].v3.r * bar0 + triangle.points[1].attributes[i].v3.r * bar1 + triangle.points[2].attributes[i].v3.r * bar2;
+      fragment.attributes[i].v3.g = triangle.points[0].attributes[i].v3.g * bar0 + triangle.points[1].attributes[i].v3.g * bar1 + triangle.points[2].attributes[i].v3.g * bar2;
+      fragment.attributes[i].v3.b = triangle.points[0].attributes[i].v3.b * bar0 + triangle.points[1].attributes[i].v3.b * bar1 + triangle.points[2].attributes[i].v3.b * bar2;
+    }
+  }
 }
 
 void rasterize(GPUContext &ctx, Triangle &triangle){
@@ -118,6 +137,7 @@ void rasterize(GPUContext &ctx, Triangle &triangle){
         inFragment.gl_FragCoord.x = x + 0.5;
         inFragment.gl_FragCoord.y = y + 0.5;
         getBarCords(triangle, inFragment);
+        getPerspectiveBarAttrs(triangle, inFragment, ctx.prg);
         OutFragment outFragment;
         ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
       }
