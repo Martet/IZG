@@ -94,21 +94,19 @@ void rasterize(GPUContext &ctx, Triangle const &triangle){
   int deltaX3 = triangle.points[0].gl_Position.x - triangle.points[2].gl_Position.x;
   int deltaY3 = triangle.points[0].gl_Position.y - triangle.points[2].gl_Position.y;
 
-  int E1 = (minY - triangle.points[0].gl_Position.y) * deltaX1 - (minX - triangle.points[0].gl_Position.x) * deltaY1;
-  int E2 = (minY - triangle.points[1].gl_Position.y) * deltaX2 - (minX - triangle.points[1].gl_Position.x) * deltaY2;
-  int E3 = (minY - triangle.points[2].gl_Position.y) * deltaX3 - (minX - triangle.points[2].gl_Position.x) * deltaY3;
+  float E1 = (minY + 0.5 - triangle.points[0].gl_Position.y) * deltaX1 - (minX + 0.5 - triangle.points[0].gl_Position.x) * deltaY1;
+  float E2 = (minY + 0.5 - triangle.points[1].gl_Position.y) * deltaX2 - (minX + 0.5 - triangle.points[1].gl_Position.x) * deltaY2;
+  float E3 = (minY + 0.5 - triangle.points[2].gl_Position.y) * deltaX3 - (minX + 0.5 - triangle.points[2].gl_Position.x) * deltaY3;
 
   for(int y = minY; y < maxY; y++){
     int lastE1 = E1;
     int lastE2 = E2;
     int lastE3 = E3;
     for(int x = minX; x < maxX; x++){
-      if(E1 > 0 && E2 > 0 && E3 > 0){
+      if(E1 >= 0 && E2 >= 0 && E3 >= 0){
         InFragment inFragment;
         inFragment.gl_FragCoord.x = x + 0.5;
         inFragment.gl_FragCoord.y = y + 0.5;
-        if(x < 5 || x > 95 || y < 5 || y > 95)
-        printf("%f: %f %f\n", inFragment.gl_FragCoord.x + inFragment.gl_FragCoord.y, inFragment.gl_FragCoord.x, inFragment.gl_FragCoord.y);
         OutFragment outFragment;
         ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
       }
