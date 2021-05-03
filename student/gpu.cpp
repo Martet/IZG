@@ -18,7 +18,7 @@ struct Triangle{
   OutVertex points[3];
 };
 
-uint32_t computeVertexID(VertexArray const&vao,uint32_t shaderInvocation){
+uint32_t computeVertexID(VertexArray const &vao, uint32_t shaderInvocation){
   if(!vao.indexBuffer)return shaderInvocation;
 
   switch(vao.indexType){
@@ -101,7 +101,20 @@ void getPerspectiveBarAttrs(Triangle &triangle, InFragment &fragment, Program &p
       fragment.attributes[i].v3.r = triangle.points[0].attributes[i].v3.r * bar0 + triangle.points[1].attributes[i].v3.r * bar1 + triangle.points[2].attributes[i].v3.r * bar2;
       fragment.attributes[i].v3.g = triangle.points[0].attributes[i].v3.g * bar0 + triangle.points[1].attributes[i].v3.g * bar1 + triangle.points[2].attributes[i].v3.g * bar2;
       fragment.attributes[i].v3.b = triangle.points[0].attributes[i].v3.b * bar0 + triangle.points[1].attributes[i].v3.b * bar1 + triangle.points[2].attributes[i].v3.b * bar2;
+      fragment.attributes[i].v4.w = triangle.points[0].attributes[i].v4.w * bar0 + triangle.points[1].attributes[i].v4.w * bar1 + triangle.points[2].attributes[i].v4.w * bar2;
     }
+  }
+}
+
+void perFragOperation(Frame &frame, InFragment &in, OutFragment &out){
+  uint32_t i = ((uint32_t)in.gl_FragCoord.y * frame.width + (uint32_t)in.gl_FragCoord.x);
+  if(frame.depth[i] > in.gl_FragCoord.z){
+    frame.color[i * 4] = MIN(MAX((out.gl_FragColor.r * out.gl_FragColor.w) + ((frame.color[i * 4] / 255.f) * (1.f - out.gl_FragColor.w)), 0.f), 1.f) * 255;
+    frame.color[i * 4 + 1] = MIN(MAX((out.gl_FragColor.g * out.gl_FragColor.w) + ((frame.color[i * 4 + 1] / 255.f) * (1.f - out.gl_FragColor.w)), 0.f), 1.f) * 255;
+    frame.color[i * 4 + 2] = MIN(MAX((out.gl_FragColor.b * out.gl_FragColor.w) + ((frame.color[i * 4 + 2] / 255.f) * (1.f - out.gl_FragColor.w)), 0.f), 1.f) * 255;
+    if(out.gl_FragColor.w > 0.5)
+      frame.depth[i] = in.gl_FragCoord.z;
+    
   }
 }
 
@@ -134,12 +147,13 @@ void rasterize(GPUContext &ctx, Triangle &triangle){
     for(uint32_t x = minX; x < maxX; x++){
       if(E1 >= 0 && E2 >= 0 && E3 >= 0){
         InFragment inFragment;
+        OutFragment outFragment;
         inFragment.gl_FragCoord.x = x + 0.5;
         inFragment.gl_FragCoord.y = y + 0.5;
         getBarCords(triangle, inFragment);
         getPerspectiveBarAttrs(triangle, inFragment, ctx.prg);
-        OutFragment outFragment;
         ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
+        perFragOperation(ctx.frame, inFragment, outFragment);
       }
       
       E1 -= deltaY1;
