@@ -6,6 +6,7 @@
  */
 
 #include <student/gpu.hpp>
+#include "../tests/testCommon.hpp"
 #include <iostream>
 #include <stdio.h>
 
@@ -60,6 +61,50 @@ void loadTriangle(Triangle &triangle, GPUContext &ctx, uint32_t tId){
     inVertex.gl_VertexID = computeVertexID(ctx.vao, tId + i);
     vertexPuller(ctx.vao, inVertex);
     ctx.prg.vertexShader(triangle.points[i], inVertex, ctx.prg.uniforms);
+  }
+}
+
+uint8_t nearPlaneClipping(Triangle &triangle, Triangle &triangle2){
+  uint8_t clipped = 0;
+  bool clippedVert[] = {false, false, false};
+  for(uint8_t i = 0; i < 3; i++){
+    if(-triangle.points[i].gl_Position.w <= triangle.points[i].gl_Position.z){
+      clipped++;
+      clippedVert[i] = true;
+    }
+  }
+
+  //printf("(%d %d %d)\n", clippedVert[0], clippedVert[1], clippedVert[2]);
+
+  float t1, t2;
+  OutVertex X1, X2;
+  switch(clipped){
+    case 0:
+      return 0;
+    case 3:
+      return 1;
+    case 1:
+      uint8_t A1, A2, B1, B2;
+      if(clippedVert[0]){A1 = 0; B1 = 1; A2 = 2; B2 = 0;}
+      else if(clippedVert[1]){A1 = 1; B1 = 2; A2 = 0; B2 = 1;}
+      else{A1 = 2; B1 = 0; A2 = 1; B2 = 2;}
+
+      t1 = (-triangle.points[A1].gl_Position.w - triangle.points[A1].gl_Position.z) / (triangle.points[B1].gl_Position.w - triangle.points[A1].gl_Position.w + triangle.points[B1].gl_Position.z - triangle.points[A1].gl_Position.z);
+      t2 = (-triangle.points[A2].gl_Position.w - triangle.points[A2].gl_Position.z) / (triangle.points[B2].gl_Position.w - triangle.points[A2].gl_Position.w + triangle.points[B2].gl_Position.z - triangle.points[A2].gl_Position.z);
+      X1.gl_Position = triangle.points[A1].gl_Position + t1 * (triangle.points[B1].gl_Position - triangle.points[A1].gl_Position);
+      X2.gl_Position = triangle.points[A1].gl_Position + t2 * (triangle.points[B2].gl_Position - triangle.points[A2].gl_Position);
+      for(uint32_t i = 0; i < maxAttributes; i++){
+        X1.attributes[i].v4 = triangle.points[A1].attributes[i].v4 + t1 * (triangle.points[B1].attributes[i].v4 - triangle.points[A1].attributes[i].v4);
+        X2.attributes[i].v4 = triangle.points[A2].attributes[i].v4 + t2 * (triangle.points[B2].attributes[i].v4 - triangle.points[A2].attributes[i].v4);
+      }
+      //std::cout << tests::str(triangle.points[0].gl_Position) << tests::str(triangle.points[1].gl_Position) << tests::str(triangle.points[2].gl_Position) << std::endl;
+      triangle.points[2] = triangle.points[A1];
+      triangle.points[0] = X1;
+      triangle.points[1] = X2;
+      //std::cout << tests::str(triangle.points[0].gl_Position) << tests::str(triangle.points[1].gl_Position) << tests::str(triangle.points[2].gl_Position) << std::endl;
+      return 0;
+    case 2:
+      return 0;
   }
 }
 
@@ -118,6 +163,17 @@ void perFragOperation(Frame &frame, InFragment &in, OutFragment &out){
   }
 }
 
+void makeFragment(GPUContext &ctx, Triangle &triangle, int x, int y){
+  InFragment inFragment;
+  OutFragment outFragment;
+  inFragment.gl_FragCoord.x = x + 0.5;
+  inFragment.gl_FragCoord.y = y + 0.5;
+  getBarCords(triangle, inFragment);
+  getPerspectiveBarAttrs(triangle, inFragment, ctx.prg);
+  ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
+  perFragOperation(ctx.frame, inFragment, outFragment);
+}
+
 void rasterize(GPUContext &ctx, Triangle &triangle){
   int32_t maxX = MAX(triangle.points[0].gl_Position.x, MAX(triangle.points[1].gl_Position.x, triangle.points[2].gl_Position.x));
   int32_t maxY = MAX(triangle.points[0].gl_Position.y, MAX(triangle.points[1].gl_Position.y, triangle.points[2].gl_Position.y));
@@ -146,16 +202,8 @@ void rasterize(GPUContext &ctx, Triangle &triangle){
     int32_t lastE3 = E3;
     for(uint32_t x = minX; x < maxX; x++){
       if(E1 >= 0 && E2 >= 0 && E3 >= 0){
-        InFragment inFragment;
-        OutFragment outFragment;
-        inFragment.gl_FragCoord.x = x + 0.5;
-        inFragment.gl_FragCoord.y = y + 0.5;
-        getBarCords(triangle, inFragment);
-        getPerspectiveBarAttrs(triangle, inFragment, ctx.prg);
-        ctx.prg.fragmentShader(outFragment, inFragment, ctx.prg.uniforms);
-        perFragOperation(ctx.frame, inFragment, outFragment);
+        makeFragment(ctx, triangle, x, y);
       }
-      
       E1 -= deltaY1;
       E2 -= deltaY2;
       E3 -= deltaY3;
@@ -171,9 +219,21 @@ void drawTrianglesImpl(GPUContext &ctx, uint32_t nofVertices){
   for(uint32_t i = 0; i < nofVertices; i += 3){
     Triangle triangle;
     loadTriangle(triangle, ctx, i);
-    perspectiveDivision(triangle);
-    viewportTransformation(triangle, ctx.frame.width, ctx.frame.height);
-    rasterize(ctx, triangle);
+    Triangle triangle2;
+    uint8_t result = nearPlaneClipping(triangle, triangle2);
+    if(result == 1){
+      perspectiveDivision(triangle);
+      viewportTransformation(triangle, ctx.frame.width, ctx.frame.height);
+      rasterize(ctx, triangle);
+    }
+    else if(result == 2){
+      perspectiveDivision(triangle);
+      viewportTransformation(triangle, ctx.frame.width, ctx.frame.height);
+      rasterize(ctx, triangle);
+      perspectiveDivision(triangle2);
+      viewportTransformation(triangle2, ctx.frame.width, ctx.frame.height);
+      rasterize(ctx, triangle2);
+    }
   }
 }
 //! [drawTrianglesImpl]
