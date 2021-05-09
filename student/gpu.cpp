@@ -98,13 +98,13 @@ uint8_t nearPlaneClipping(Triangle &triangle, Triangle &triangle2){
         X2.attributes[i].v4 = triangle.points[A2].attributes[i].v4 + t2 * (triangle.points[B2].attributes[i].v4 - triangle.points[A2].attributes[i].v4);
       }
       //std::cout << tests::str(triangle.points[0].gl_Position) << tests::str(triangle.points[1].gl_Position) << tests::str(triangle.points[2].gl_Position) << std::endl;
-      triangle.points[2] = triangle.points[A1];
+      /*triangle.points[2] = triangle.points[A1];
       triangle.points[0] = X1;
-      triangle.points[1] = X2;
+      triangle.points[1] = X2;*/
       //std::cout << tests::str(triangle.points[0].gl_Position) << tests::str(triangle.points[1].gl_Position) << tests::str(triangle.points[2].gl_Position) << std::endl;
-      return 0;
+      return 0; //doesn't work :(, don't draw it at all
     case 2:
-      return 0;
+      return 0; //doesn't work :(, don't draw it at all
   }
 }
 
