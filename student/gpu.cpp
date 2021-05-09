@@ -6,9 +6,6 @@
  */
 
 #include <student/gpu.hpp>
-#include "../tests/testCommon.hpp"
-#include <iostream>
-#include <stdio.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
@@ -74,8 +71,6 @@ uint8_t nearPlaneClipping(Triangle &triangle, Triangle &triangle2){
     }
   }
 
-  //printf("(%d %d %d)\n", clippedVert[0], clippedVert[1], clippedVert[2]);
-
   float t1, t2;
   OutVertex X1, X2;
   switch(clipped){
@@ -106,6 +101,7 @@ uint8_t nearPlaneClipping(Triangle &triangle, Triangle &triangle2){
     case 2:
       return 0; //doesn't work :(, don't draw it at all
   }
+  return 0;
 }
 
 void perspectiveDivision(Triangle &triangle){
@@ -192,9 +188,9 @@ void rasterize(GPUContext &ctx, Triangle &triangle){
   int32_t deltaX3 = triangle.points[0].gl_Position.x - triangle.points[2].gl_Position.x;
   int32_t deltaY3 = triangle.points[0].gl_Position.y - triangle.points[2].gl_Position.y;
 
-  float E1 = (minY + 0.5 - triangle.points[0].gl_Position.y) * deltaX1 - (minX + 0.5 - triangle.points[0].gl_Position.x) * deltaY1;
-  float E2 = (minY + 0.5 - triangle.points[1].gl_Position.y) * deltaX2 - (minX + 0.5 - triangle.points[1].gl_Position.x) * deltaY2;
-  float E3 = (minY + 0.5 - triangle.points[2].gl_Position.y) * deltaX3 - (minX + 0.5 - triangle.points[2].gl_Position.x) * deltaY3;
+  int32_t E1 = (minY + 0.5 - triangle.points[0].gl_Position.y) * deltaX1 - (minX + 0.5 - triangle.points[0].gl_Position.x) * deltaY1;
+  int32_t E2 = (minY + 0.5 - triangle.points[1].gl_Position.y) * deltaX2 - (minX + 0.5 - triangle.points[1].gl_Position.x) * deltaY2;
+  int32_t E3 = (minY + 0.5 - triangle.points[2].gl_Position.y) * deltaX3 - (minX + 0.5 - triangle.points[2].gl_Position.x) * deltaY3;
 
   for(uint32_t y = minY; y < maxY; y++){
     int32_t lastE1 = E1;

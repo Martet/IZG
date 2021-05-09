@@ -6,9 +6,6 @@
  */
 #include <student/drawModel.hpp>
 #include <student/gpu.hpp>
-#include <stdio.h>
-#include <iostream>
-#include "../tests/testCommon.hpp"
 
 void drawNode(GPUContext &ctx, Node const &node, Model const &model, glm::mat4 mat){
   if(node.mesh >= 0){ // ma tento node mesh?
